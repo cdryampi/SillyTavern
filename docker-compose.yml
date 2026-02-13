@@ -1,17 +1,29 @@
 services:
   sillytavern:
     build: .
-    container_name: sillytavern
     hostname: sillytavern
     image: ghcr.io/sillytavern/sillytavern:latest
     environment:
       - NODE_ENV=production
       - FORCE_COLOR=1
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - "./config:/home/node/app/config"
       - "./data:/home/node/app/data"
       - "./plugins:/home/node/app/plugins"
       - "./extensions:/home/node/app/public/scripts/extensions/third-party"
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.sillytavern-rp.rule=Host(`roleplaydb.yampi.eu`)"
+      - "traefik.http.routers.sillytavern-rp.entrypoints=websecure"
+      - "traefik.http.routers.sillytavern-rp.tls.certresolver=letsencrypt"
+      - "traefik.http.services.sillytavern-rp.loadbalancer.server.port=8000"
     restart: unless-stopped
+
+networks:
+  dokploy-network:
+    external: true
