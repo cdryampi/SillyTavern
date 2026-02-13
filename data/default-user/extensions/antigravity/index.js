@@ -9,7 +9,7 @@ const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // Configuración por defecto
 const defaultSettings = {
-    sourceUrl: "", // URL del JSON o Endpoint
+    sourceUrl: "https://api.npoint.io/d591176bd0f49d59dbba", // URL del JSON o Endpoint
 };
 
 let settings = defaultSettings;
@@ -64,12 +64,10 @@ async function fetchAndConnect() {
             newUrl = text.trim();
         }
 
-        // Limpieza básica de URL (Regex para extraer trycloudflare si hay texto circundante)
-        const cloudflareRegex = /https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/;
-        const match = newUrl.match(cloudflareRegex);
-
-        if (match) {
-            newUrl = match[0];
+        // Limpieza básica: extraer primera URL si hay texto alrededor
+        const urlMatch = newUrl.match(/https?:\/\/[^\s"'<>()[\]{}]+/);
+        if (urlMatch) {
+            newUrl = urlMatch[0];
         }
 
         if (!newUrl.startsWith("http")) {
@@ -86,25 +84,39 @@ async function fetchAndConnect() {
         // Nota: Esto depende de cómo ST maneja la API actualmente seleccionada.
         // Asumimos que el usuario ya tiene seleccionado "KoboldCPP" o "Text Completion".
 
-        // Elemento DOM de la URL de API
-        const apiUrlInput = document.getElementById("api_url_textgeneration");
-        if (apiUrlInput) {
-            apiUrlInput.value = newUrl;
-            apiUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
-            apiUrlInput.dispatchEvent(new Event('change', { bubbles: true }));
+        // Soporte para IDs actuales y legacy de ST
+        const inputIds = [
+            "koboldcpp_api_url_text", // ST actual para KoboldCpp
+            "api_url_text", // Kobold legacy
+            "api_url_textgeneration", // TextGen legacy
+        ];
+        const buttonIds = [
+            "api_button_textgenerationwebui", // ST actual
+            "api_button", // Kobold legacy
+            "api_button_textgeneration", // TextGen legacy
+        ];
 
-            // Disparar botón de conectar
-            const connectApiBtn = document.getElementById("api_button_textgeneration");
-            if (connectApiBtn) {
-                setTimeout(() => connectApiBtn.click(), 500);
-                toastr.success("Intentando reconectar...", "Antigravity");
-            } else {
-                toastr.warning("URL actualizada, pero no encontré el botón de conectar.", "Antigravity");
-            }
+        let updatedInputs = 0;
+        for (const inputId of inputIds) {
+            const input = document.getElementById(inputId);
+            if (!input) continue;
+            input.value = newUrl;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.dispatchEvent(new Event("change", { bubbles: true }));
+            updatedInputs++;
+        }
+
+        const connectApiBtn = buttonIds
+            .map((id) => document.getElementById(id))
+            .find(Boolean);
+
+        if (updatedInputs === 0) {
+            toastr.error("No se encontró ningún campo de URL API. Abre la sección de conexión del backend.", "Antigravity");
+        } else if (connectApiBtn) {
+            setTimeout(() => connectApiBtn.click(), 500);
+            toastr.success("Intentando reconectar...", "Antigravity");
         } else {
-            // Fallback: Intentar actualizar via settings directos si el DOM no está visible
-            // Esto es más arriesgado si la UI no se entera.
-            toastr.error("No se pudo encontrar el input de API URL. Asegúrate de estar en la pestaña de conexiones.", "Antigravity");
+            toastr.warning("URL actualizada, pero no encontré el botón de conectar.", "Antigravity");
         }
 
     } catch (err) {
