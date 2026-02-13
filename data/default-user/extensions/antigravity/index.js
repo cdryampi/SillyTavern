@@ -76,14 +76,6 @@ async function fetchAndConnect() {
 
         toastr.success(`URL encontrada: ${newUrl}`, "Antigravity");
 
-        // ACTUALIZAR SILLYTAVERN
-        // Accedemos al contexto global de ST
-        const context = getContext();
-
-        // Actualizamos URL de API principal (TextGeneration)
-        // Nota: Esto depende de cómo ST maneja la API actualmente seleccionada.
-        // Asumimos que el usuario ya tiene seleccionado "KoboldCPP" o "Text Completion".
-
         // Soporte para IDs actuales y legacy de ST
         const inputIds = [
             "koboldcpp_api_url_text", // ST actual para KoboldCpp
