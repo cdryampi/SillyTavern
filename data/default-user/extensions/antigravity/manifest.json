@@ -1,0 +1,10 @@
+{
+    "name": "antigravity",
+    "display_name": "Antigravity Connect",
+    "version": "1.0.0",
+    "author": "Antigravity",
+    "description": "Sincroniza automáticamente la API de KoboldCPP.",
+    "loading_order": 999,
+    "js": "index.js",
+    "css": "style.css"
+}

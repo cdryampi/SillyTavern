@@ -1,0 +1,70 @@
+#antigravity-container {
+    position: fixed;
+    top: 50px;
+    right: 50px;
+    /* Mover a la derecha para evitar menú lateral */
+    z-index: 99999;
+    /* Z-index extremo para asegurar visibilidad */
+    display: flex;
+    align-items: flex-start;
+}
+
+#antigravity-connect-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #ff0000;
+    /* Rojo temporal para debug */
+    border: 2px solid white;
+    border: 1px solid var(--smart-theme-border);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--smart-theme-body-text);
+    transition: all 0.2s;
+}
+
+#antigravity-connect-btn:hover {
+    background-color: var(--smart-theme-focus-bg);
+}
+
+.antigravity-popup {
+    position: absolute;
+    top: 50px;
+    /* Debajo del botón */
+    right: 0;
+    /* Alinear a la derecha con el botón */
+    background-color: var(--smart-theme-bg);
+    border: 1px solid var(--smart-theme-border);
+    padding: 10px;
+    border-radius: 5px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 100000;
+}
+
+.antigravity-popup.hidden {
+    display: none;
+}
+
+.antigravity-popup input {
+    width: 100% !important;
+    color: black !important;
+    background-color: white !important;
+    pointer-events: auto !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    border: 1px solid #ccc !important;
+    padding: 5px !important;
+    margin-bottom: 5px !important;
+}
+
+.antigravity-popup {
+    /* ... rest of styles ... */
+    user-select: none;
+    cursor: default;
+}

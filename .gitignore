@@ -47,7 +47,13 @@ access.log
 public/css/user.css
 public/error/
 /plugins/
-/data
+/data/*
+!/data/default-user/
+/data/default-user/*
+!/data/default-user/extensions/
+/data/default-user/extensions/*
+!/data/default-user/extensions/antigravity/
+!/data/default-user/extensions/antigravity/**
 /default/scaffold
 public/scripts/extensions/third-party
 /certs
