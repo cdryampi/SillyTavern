@@ -5,7 +5,6 @@ import {
 // Toastr is global in SillyTavern
 
 const extensionName = "antigravity";
-const extensionFolderPath = `scripts/extensions/third-party/${extensionName}`;
 
 // Configuración por defecto
 const defaultSettings = {
@@ -13,6 +12,33 @@ const defaultSettings = {
 };
 
 let settings = defaultSettings;
+
+function normalizeKoboldEndpoint(urlString) {
+    const parsed = new URL(urlString);
+    const normalizedPath = parsed.pathname.replace(/\/+$/, "");
+
+    if (!normalizedPath || normalizedPath === "/") {
+        parsed.pathname = "/api";
+    } else if (normalizedPath === "/v1" || normalizedPath === "/api/v1") {
+        parsed.pathname = "/api";
+    } else {
+        parsed.pathname = normalizedPath;
+    }
+
+    return parsed.toString();
+}
+
+function setInputValue(id, value) {
+    const input = document.getElementById(id);
+    if (!input) {
+        return false;
+    }
+
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+}
 
 async function loadSettings() {
     settings = Object.assign({}, defaultSettings, extension_settings[extensionName]);
@@ -33,11 +59,13 @@ async function fetchAndConnect() {
     }
 
     const connectBtn = document.getElementById("antigravity-connect-btn");
-    const icon = connectBtn.querySelector("i");
+    const icon = connectBtn?.querySelector("i");
 
     // Indicador de carga
-    icon.classList.remove("fa-link");
-    icon.classList.add("fa-spinner", "fa-spin");
+    if (icon) {
+        icon.classList.remove("fa-link");
+        icon.classList.add("fa-spinner", "fa-spin");
+    }
 
     try {
         toastr.info("Buscando nueva URL...", "Antigravity");
@@ -74,38 +102,52 @@ async function fetchAndConnect() {
             throw new Error("No se encontró una URL válida en la respuesta.");
         }
 
-        toastr.success(`URL encontrada: ${newUrl}`, "Antigravity");
-
-        // Soporte para IDs actuales y legacy de ST
-        const inputIds = [
-            "koboldcpp_api_url_text", // ST actual para KoboldCpp
-            "api_url_text", // Kobold legacy
-            "api_url_textgeneration", // TextGen legacy
-        ];
-        const buttonIds = [
-            "api_button_textgenerationwebui", // ST actual
-            "api_button", // Kobold legacy
-            "api_button_textgeneration", // TextGen legacy
-        ];
+        const normalizedUrl = normalizeKoboldEndpoint(newUrl);
+        toastr.success(`URL encontrada: ${normalizedUrl}`, "Antigravity");
 
         let updatedInputs = 0;
-        for (const inputId of inputIds) {
-            const input = document.getElementById(inputId);
-            if (!input) continue;
-            input.value = newUrl;
-            input.dispatchEvent(new Event("input", { bubbles: true }));
-            input.dispatchEvent(new Event("change", { bubbles: true }));
-            updatedInputs++;
-        }
+        if (setInputValue("koboldcpp_api_url_text", normalizedUrl)) updatedInputs++;
+        if (setInputValue("api_url_text", normalizedUrl)) updatedInputs++;
+        if (setInputValue("api_url_textgeneration", normalizedUrl)) updatedInputs++;
+        if (setInputValue("textgenerationwebui_api_url_text", normalizedUrl)) updatedInputs++;
 
-        const connectApiBtn = buttonIds
-            .map((id) => document.getElementById(id))
-            .find(Boolean);
+        const mainApi = document.getElementById("main_api")?.value;
+        let triggeredConnect = false;
+
+        if (mainApi === "textgenerationwebui") {
+            const textgenType = document.getElementById("textgen_type");
+            if (textgenType) {
+                textgenType.value = "koboldcpp";
+                textgenType.dispatchEvent(new Event("change", { bubbles: true }));
+                triggeredConnect = true;
+            }
+
+            if (!triggeredConnect) {
+                const textgenBtn = document.getElementById("api_button_textgenerationwebui");
+                if (textgenBtn) {
+                    setTimeout(() => textgenBtn.click(), 500);
+                    triggeredConnect = true;
+                }
+            }
+        } else if (mainApi === "kobold") {
+            const koboldBtn = document.getElementById("api_button");
+            if (koboldBtn) {
+                setTimeout(() => koboldBtn.click(), 500);
+                triggeredConnect = true;
+            }
+        } else {
+            const fallbackBtn = document.getElementById("api_button_textgenerationwebui")
+                || document.getElementById("api_button")
+                || document.getElementById("api_button_textgeneration");
+            if (fallbackBtn) {
+                setTimeout(() => fallbackBtn.click(), 500);
+                triggeredConnect = true;
+            }
+        }
 
         if (updatedInputs === 0) {
             toastr.error("No se encontró ningún campo de URL API. Abre la sección de conexión del backend.", "Antigravity");
-        } else if (connectApiBtn) {
-            setTimeout(() => connectApiBtn.click(), 500);
+        } else if (triggeredConnect) {
             toastr.success("Intentando reconectar...", "Antigravity");
         } else {
             toastr.warning("URL actualizada, pero no encontré el botón de conectar.", "Antigravity");
@@ -115,8 +157,10 @@ async function fetchAndConnect() {
         console.error(err);
         toastr.error(`Error: ${err.message}`, "Antigravity Falló");
     } finally {
-        icon.classList.remove("fa-spinner", "fa-spin");
-        icon.classList.add("fa-link");
+        if (icon) {
+            icon.classList.remove("fa-spinner", "fa-spin");
+            icon.classList.add("fa-link");
+        }
     }
 }
 
@@ -127,10 +171,6 @@ function createUi() {
 
     // Método seguro: Añadir a la lista de extensiones o crear un botón flotante discreto.
     // Vamos a inyectarlo en el panel de conexiones API si es posible, o en el top bar.
-
-    const topBar = document.getElementById("quick-reply-container") || document.querySelector(".nav-bottom-right"); // Intentar ubicarlo abajo a la derecha o arriba
-    // Mejor: Un botón en el header principal
-    const headerIcons = document.querySelector(".drawer-content .flex-container") || document.body;
 
     // Crearemos un botón flotante simple para este MVP en la esquina superior izquierda
     const container = document.createElement("div");
