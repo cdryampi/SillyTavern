@@ -51,7 +51,7 @@ ssl:
   keyPassphrase: ""
 # -- SECURITY CONFIGURATION --
 # Toggle whitelist mode
-whitelistMode: true
+whitelistMode: false
 # Whitelist will also verify IP in X-Forwarded-For / X-Real-IP headers
 enableForwardedWhitelist: true
 # Whitelist of allowed IP addresses
@@ -61,11 +61,11 @@ whitelist:
 # Automatically whitelist Docker host and gateway IPs
 whitelistDockerHosts: true
 # Toggle basic authentication for endpoints
-basicAuthMode: false
+basicAuthMode: true
 # Basic authentication credentials
 basicAuthUser:
-  username: "user"
-  password: "password"
+  username: "yampi"
+  password: "thos"
 # Enables CORS proxy middleware
 enableCorsProxy: false
 # -- REQUEST PROXY CONFIGURATION --
@@ -109,7 +109,7 @@ sso:
 # Host whitelist configuration. Recommended if you're using a listen mode
 hostWhitelist:
   # Enable or disable host whitelisting
-  enabled: false
+  enabled: true
   # Scan incoming requests for potential host header spoofing
   scan: true
   # List of allowed hosts. Do not include localhost or IPs, these are safe.
@@ -117,7 +117,8 @@ hostWhitelist:
   # Examples:
   # - example.com
   # - .trycloudflare.com
-  hosts: []
+  hosts:
+    - roleplaydb.yampi.eu
 
 # User session timeout *in seconds* (defaults to 24 hours).
 ## Set to a positive number to expire session after a certain time of inactivity
