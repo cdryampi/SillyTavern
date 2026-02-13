@@ -1,5 +1,4 @@
 import {
-    saveSettingsDebounced,
     extension_settings,
     getContext,
 } from "../../../extensions.js";
@@ -21,7 +20,7 @@ async function loadSettings() {
 
 async function saveSettings() {
     extension_settings[extensionName] = settings;
-    saveSettingsDebounced();
+    getContext().saveSettingsDebounced();
 }
 
 async function fetchAndConnect() {
