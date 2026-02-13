@@ -5,7 +5,7 @@ import express from 'express';
 import _ from 'lodash';
 import { sync as writeFileAtomicSync } from 'write-file-atomic';
 
-import { SETTINGS_FILE } from '../constants.js';
+import { DEFAULT_USER, SETTINGS_FILE } from '../constants.js';
 import { getConfigValue, generateTimestamp, removeOldBackups } from '../util.js';
 import { getAllUserHandles, getUserDirectories } from '../users.js';
 import { getFileNameValidationFunction } from '../middleware/validateFileName.js';
@@ -199,11 +199,29 @@ function getLatestBackup(handle) {
 
 export const router = express.Router();
 
+function getRequestDirectories(request) {
+    return request.user?.directories ?? getUserDirectories(DEFAULT_USER.handle);
+}
+
+function getRequestHandle(request) {
+    return request.user?.profile?.handle ?? DEFAULT_USER.handle;
+}
+
+function ensureDirectoryStructure(directories) {
+    for (const dirPath of Object.values(directories)) {
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+    }
+}
+
 router.post('/save', function (request, response) {
     try {
-        const pathToSettings = path.join(request.user.directories.root, SETTINGS_FILE);
+        const directories = getRequestDirectories(request);
+        ensureDirectoryStructure(directories);
+        const pathToSettings = path.join(directories.root, SETTINGS_FILE);
         writeFileAtomicSync(pathToSettings, JSON.stringify(request.body, null, 4), 'utf8');
-        triggerAutoSave(request.user.profile.handle);
+        triggerAutoSave(getRequestHandle(request));
         response.send({ result: 'ok' });
     } catch (err) {
         console.error(err);
@@ -213,76 +231,89 @@ router.post('/save', function (request, response) {
 
 // Wintermute's code
 router.post('/get', (request, response) => {
-    let settings;
     try {
-        const pathToSettings = path.join(request.user.directories.root, SETTINGS_FILE);
-        settings = fs.readFileSync(pathToSettings, 'utf8');
+        const directories = getRequestDirectories(request);
+        ensureDirectoryStructure(directories);
+
+        const pathToSettings = path.join(directories.root, SETTINGS_FILE);
+        let settings;
+
+        if (!fs.existsSync(pathToSettings)) {
+            const pathToDefaultSettings = path.join(process.cwd(), 'default', 'content', 'settings.json');
+            settings = fs.existsSync(pathToDefaultSettings)
+                ? fs.readFileSync(pathToDefaultSettings, 'utf8')
+                : '{}';
+            writeFileAtomicSync(pathToSettings, settings, 'utf8');
+        } else {
+            settings = fs.readFileSync(pathToSettings, 'utf8');
+        }
+
+        // NovelAI Settings
+        const { fileContents: novelai_settings, fileNames: novelai_setting_names }
+            = readPresetsFromDirectory(directories.novelAI_Settings, {
+                sortFunction: sortByName(directories.novelAI_Settings),
+                removeFileExtension: true,
+            });
+
+        // OpenAI Settings
+        const { fileContents: openai_settings, fileNames: openai_setting_names }
+            = readPresetsFromDirectory(directories.openAI_Settings, {
+                sortFunction: sortByName(directories.openAI_Settings), removeFileExtension: true,
+            });
+
+        // TextGenerationWebUI Settings
+        const { fileContents: textgenerationwebui_presets, fileNames: textgenerationwebui_preset_names }
+            = readPresetsFromDirectory(directories.textGen_Settings, {
+                sortFunction: sortByName(directories.textGen_Settings), removeFileExtension: true,
+            });
+
+        //Kobold
+        const { fileContents: koboldai_settings, fileNames: koboldai_setting_names }
+            = readPresetsFromDirectory(directories.koboldAI_Settings, {
+                sortFunction: sortByName(directories.koboldAI_Settings), removeFileExtension: true,
+            });
+
+        const worldFiles = fs
+            .readdirSync(directories.worlds)
+            .filter(file => path.extname(file).toLowerCase() === '.json')
+            .sort((a, b) => a.localeCompare(b));
+        const world_names = worldFiles.map(item => path.parse(item).name);
+
+        const themes = readAndParseFromDirectory(directories.themes);
+        const movingUIPresets = readAndParseFromDirectory(directories.movingUI);
+        const quickReplyPresets = readAndParseFromDirectory(directories.quickreplies);
+
+        const instruct = readAndParseFromDirectory(directories.instruct);
+        const context = readAndParseFromDirectory(directories.context);
+        const sysprompt = readAndParseFromDirectory(directories.sysprompt);
+        const reasoning = readAndParseFromDirectory(directories.reasoning);
+
+        response.send({
+            settings,
+            koboldai_settings,
+            koboldai_setting_names,
+            world_names,
+            novelai_settings,
+            novelai_setting_names,
+            openai_settings,
+            openai_setting_names,
+            textgenerationwebui_presets,
+            textgenerationwebui_preset_names,
+            themes,
+            movingUIPresets,
+            quickReplyPresets,
+            instruct,
+            context,
+            sysprompt,
+            reasoning,
+            enable_extensions: ENABLE_EXTENSIONS,
+            enable_extensions_auto_update: ENABLE_EXTENSIONS_AUTO_UPDATE,
+            enable_accounts: ENABLE_ACCOUNTS,
+        });
     } catch (e) {
+        console.error('Failed to load settings payload:', e);
         return response.sendStatus(500);
     }
-
-    // NovelAI Settings
-    const { fileContents: novelai_settings, fileNames: novelai_setting_names }
-        = readPresetsFromDirectory(request.user.directories.novelAI_Settings, {
-            sortFunction: sortByName(request.user.directories.novelAI_Settings),
-            removeFileExtension: true,
-        });
-
-    // OpenAI Settings
-    const { fileContents: openai_settings, fileNames: openai_setting_names }
-        = readPresetsFromDirectory(request.user.directories.openAI_Settings, {
-            sortFunction: sortByName(request.user.directories.openAI_Settings), removeFileExtension: true,
-        });
-
-    // TextGenerationWebUI Settings
-    const { fileContents: textgenerationwebui_presets, fileNames: textgenerationwebui_preset_names }
-        = readPresetsFromDirectory(request.user.directories.textGen_Settings, {
-            sortFunction: sortByName(request.user.directories.textGen_Settings), removeFileExtension: true,
-        });
-
-    //Kobold
-    const { fileContents: koboldai_settings, fileNames: koboldai_setting_names }
-        = readPresetsFromDirectory(request.user.directories.koboldAI_Settings, {
-            sortFunction: sortByName(request.user.directories.koboldAI_Settings), removeFileExtension: true,
-        });
-
-    const worldFiles = fs
-        .readdirSync(request.user.directories.worlds)
-        .filter(file => path.extname(file).toLowerCase() === '.json')
-        .sort((a, b) => a.localeCompare(b));
-    const world_names = worldFiles.map(item => path.parse(item).name);
-
-    const themes = readAndParseFromDirectory(request.user.directories.themes);
-    const movingUIPresets = readAndParseFromDirectory(request.user.directories.movingUI);
-    const quickReplyPresets = readAndParseFromDirectory(request.user.directories.quickreplies);
-
-    const instruct = readAndParseFromDirectory(request.user.directories.instruct);
-    const context = readAndParseFromDirectory(request.user.directories.context);
-    const sysprompt = readAndParseFromDirectory(request.user.directories.sysprompt);
-    const reasoning = readAndParseFromDirectory(request.user.directories.reasoning);
-
-    response.send({
-        settings,
-        koboldai_settings,
-        koboldai_setting_names,
-        world_names,
-        novelai_settings,
-        novelai_setting_names,
-        openai_settings,
-        openai_setting_names,
-        textgenerationwebui_presets,
-        textgenerationwebui_preset_names,
-        themes,
-        movingUIPresets,
-        quickReplyPresets,
-        instruct,
-        context,
-        sysprompt,
-        reasoning,
-        enable_extensions: ENABLE_EXTENSIONS,
-        enable_extensions_auto_update: ENABLE_EXTENSIONS_AUTO_UPDATE,
-        enable_accounts: ENABLE_ACCOUNTS,
-    });
 });
 
 router.post('/get-snapshots', async (request, response) => {
